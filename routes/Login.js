@@ -6,11 +6,12 @@ const validator = require("../functions/validation");
 const userModel = require("../models/userModel");
 const helmet = require("helmet");
 const bodyParser = require("body-parser");
-var cors = require('cors');
+// var cors = require('cors');
 
-router.use(cors());
+// router.use(cors());
 router.use(bodyParser.urlencoded({ extended: true }));
 router.use(helmet());
+router.use(express.json());
 
 router.post("/", (req, res) => {
     const { error } = validator.ValidateData(req.body);

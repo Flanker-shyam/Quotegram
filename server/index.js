@@ -7,14 +7,13 @@ const express = require("express");
 const connectDB = require("../DataBaseConnect/mongooseDB");
 const db = process.env["MONGO_DB"];
 const domain = process.env["MONGO_DOMAIN"];
-const portdb = process.env["PORT"];
 const dotenv = require("dotenv")
 dotenv.config();
 
 const app = express();
 app.use(helmet());
 app.use('/register', registerRoute);
-app.use('/login', loginRoute);
+app.use('/login', loginRoute);            
 app.use('/quotes',quotesRoute);
 
 app.use(express.static("public"));
@@ -33,7 +32,7 @@ app.listen(port, (err) => {
         startDebugger(err);
     }
     else {
-        console.log("connection established successfully");
+        console.log(`connection established successfully at Port: ${port}`);
         // startDebugger("connection established successfully");
     }
 });
