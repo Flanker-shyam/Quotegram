@@ -14,8 +14,26 @@ router.use(bodyParser.urlencoded({ extended: true }));
 router.use(helmet());
 router.use(express.json());
 
+router.post("/checkUserName", (req,res)=>{
+    let name = req.body.name;
+
+    userModel.findOne({username:name}, (err, foundUser)=>{
+        if(!err){
+            if(foundUser)
+            {
+                res.send(true);
+            }
+            else{
+                res.send(false);
+            }
+        }
+        else{
+            res.status(400).send(err.details[0].message);
+        }
+    })
+});
+
 router.post("/", (req, res) => {
-    console.log(req.body);
     bcrypt.hash(req.body.password, saltRounds, function (err, hash) {
         if (err) {
             console.log(err);
@@ -27,8 +45,9 @@ router.post("/", (req, res) => {
                 return;
             }
             const newUser = new userModel({
-                username: req.body.username,
-                password: hash
+                username:req.body.name,
+                email: req.body.email,
+                password: hash,
             });
 
             newUser.save(err => {
@@ -44,5 +63,3 @@ router.post("/", (req, res) => {
 });
 
 module.exports = router;
-
-
