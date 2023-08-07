@@ -2,62 +2,69 @@ const express = require("express");
 const router = express.Router();
 const imageModel = require('../models/imagesModel');
 const bodyParser = require("body-parser");
-const fileUpload = require("express-fileupload");
 var cors = require('cors');
 const helmet = require("helmet");
-const { verify } = require("jsonwebtoken");
+const multer = require('multer'); 
+require("dotenv").config();
+
+const quoteModel = require("../models/imagesModel");
+const auth = require("../functions/authorize");
+const validator = require("../functions/validation");
 
 router.use(cors());
 router.use(bodyParser.urlencoded({ extended: true }));
 router.use(helmet());
 
-router.use(fileUpload({
-    limits: { fileSize: 50 * 1024 * 1024 },
-}));
 
-function verifyToken(token) {
-    const decoded = jsonwebtoken.verify(token, process.env.JWT_SECRET);
+const storage = multer.memoryStorage(); // Use memory storage for storing file buffers
+const upload = multer({ storage: storage });
 
-    if (decoded) {
-        return true;
-    } else {
-        return false;
+router.post("/", upload.single('image'), async (req, res) => {
+
+    let token = req?.headers?.authorization?.split(" ")[1];
+    token =  token === undefined?"thisisdefault":token;
+
+    if(!auth.verifyToken(token))
+    {
+        res.send("Need to login to view the content");
+        return;
+        // res.redirect("/login")
     }
-}
-
-router.post("/", function (req, res) {
-    const uploadedFile = req.files.image;
-    const description = req.body.description;
-
-    const path = "/home/robot/Desktop/Desktop/webDevelopment/login-signup-react/login-frontend/public/files/" + uploadedFile.name;
-    const pathToSave = "../files/" + uploadedFile.name;
-    uploadedFile.mv(path, (err) => {
-        if (err) {
-            console.log(err);
+    else{
+        req.body.tags = JSON.parse(req.body.tags);
+        if (!req.file) {
+            res.status(400).send("Image file is required");
+            return;
         }
-        else {
-            console.log("uploaded success");
+        const {error} = validator.ValidateImageData(req.body);
+        if(error){
+            res.status(400).send(error.details[0].message);
+            return;
         }
-    });
-
-    const newImage = new imageModel({
-        imageUrl: pathToSave,
-        description: description
-    })
-    newImage.save(err => {
-        if (err) {
-            return res.status(500).send(err);
+        else{
+            try {
+                const image = new quoteModel({
+                    title: req.body.title,
+                    description: req.body.description,
+                    image: req.file.buffer, // Use req.file.buffer to access the uploaded image buffer
+                    tags: req.body.tags,
+                });
+        
+                const savedImage = await image.save();
+                res.status(200).send(savedImage);
+            } catch (err) {
+                res.status(500).send(err);
+            }
         }
-        else {
-            return res.send({ status: "Success", path: path });
-        }
-    });
+    }
 });
 
 router.get("/", function (req, res) {
-    const token = req.headers.authorization.split(" ")[1];
 
-    if(!verifyToken(token))
+    let token = req?.headers?.authorization?.split(" ")[1];
+    token =  token === undefined?"thisisdefault":token;
+
+    if(!auth.verifyToken(token))
     {
         res.send("Need to login to view the content");
         return;
