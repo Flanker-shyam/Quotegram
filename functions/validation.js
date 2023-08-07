@@ -23,13 +23,14 @@ function ValidateLoginData(user) {
     return newSchema.validate(user);
 };
 
-function ValidateImageData(image){
+function ValidateImageData(quote){
     const imageSchema = Joi.object({
         title: Joi.string().required(),
         description: Joi.string().required(),
-        image: Joi.buffer().required(),
-        tags: Joi.array().required()
+        tags: Joi.array().items(Joi.string()).required(),
     });
+
+    return imageSchema.validate(quote);
 }
 
 exports.ValidateRegisterData = ValidateRegisterData;
