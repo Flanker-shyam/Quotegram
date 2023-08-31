@@ -1,85 +1,110 @@
 const express = require("express");
 const router = express.Router();
-const imageModel = require('../models/imagesModel');
 const bodyParser = require("body-parser");
 var cors = require('cors');
 const helmet = require("helmet");
-const multer = require('multer'); 
+const verifyUserToken = require("../auth/authorization");
+const validator = require("../functions/validation");
 require("dotenv").config();
 
-const quoteModel = require("../models/imagesModel");
-const auth = require("../functions/authorize");
-const validator = require("../functions/validation");
+//models
+const quoteModel = require('../models/QuoteModel');
+const likeModel = require("../models/likesModel");
+const commentModel = require("../models/commentModel");
+const userModel = require("../models/userModel");
 
 router.use(cors());
 router.use(bodyParser.urlencoded({ extended: true }));
 router.use(helmet());
+router.use(express.json());
+router.use(verifyUserToken);
 
-
-const storage = multer.memoryStorage(); // Use memory storage for storing file buffers
-const upload = multer({ storage: storage });
-
-router.post("/", upload.single('image'), async (req, res) => {
-
-    let token = req?.headers?.authorization?.split(" ")[1];
-    token =  token === undefined?"thisisdefault":token;
-
-    if(!auth.verifyToken(token))
-    {
-        res.send("Need to login to view the content");
+router.post("/", verifyUserToken, async(req, res) => {
+    const {error} = validator.ValidateQuoteData(req.body);
+    if(error){
+        res.status(400).send(error.details[0].message);
         return;
-        // res.redirect("/login")
     }
     else{
-        req.body.tags = JSON.parse(req.body.tags);
-        if (!req.file) {
-            res.status(400).send("Image file is required");
-            return;
-        }
-        const {error} = validator.ValidateImageData(req.body);
-        if(error){
-            res.status(400).send(error.details[0].message);
-            return;
-        }
-        else{
-            try {
-                const image = new quoteModel({
-                    title: req.body.title,
-                    description: req.body.description,
-                    image: req.file.buffer, // Use req.file.buffer to access the uploaded image buffer
-                    tags: req.body.tags,
-                });
-        
-                const savedImage = await image.save();
-                res.status(200).send(savedImage);
-            } catch (err) {
-                res.status(500).send(err);
-            }
+        try {
+            const quote = new quoteModel({
+                userID: req.body.userID,
+                content: req.body.content,
+                tags: req.body.tags,
+            });
+    
+            const savedQuote = await quote.save();
+            res.status(200).send(savedQuote);
+        } catch (err) {
+            res.status(500).send(err);
         }
     }
 });
 
-router.get("/", function (req, res) {
+router.get("/", verifyUserToken, function (req, res) {
+    quoteModel.find({}, function (err, foundImages) {
+        if (err) {
+            console.log(err);
+        }
+        else {
+            res.send(foundImages);
+        }
+    });
+});
 
-    let token = req?.headers?.authorization?.split(" ")[1];
-    token =  token === undefined?"thisisdefault":token;
+// Like Routes
+router.post('/:quotationId/like', verifyUserToken, async (req, res) => {
+    try{
+        const {userID, quoteID} = req.body;
+        const user = await userModel.find({_id:userID});
+        const quote = await quoteModel.find({_id:quoteID});
 
-    if(!auth.verifyToken(token))
-    {
-        res.send("Need to login to view the content");
-        return;
-        // res.redirect("/login")
-    }
-    else{
-        imageModel.find({}, function (err, foundImages) {
-            if (err) {
-                console.log(err);
-            }
-            else {
-                res.send(foundImages);
-            }
+        if(!user || !quote)
+        {
+            res.status(404).json("Either userID or quoteID is invalid");
+            return;
+        }
+
+        const likes = new likeModel({
+            userID,
+            quoteID,
         });
+
+        await likes.save();
+        res.status(200).json({message:"You Liked this post"});
     }
+    catch(exp)
+    {
+        res.status(500).json({message:"An error accured"});
+    }
+});
+  
+  // Comment Routes
+router.post('/:quotationId/comment', verifyUserToken, async (req, res) => {
+try{
+    const {userID, quoteID, content} = req.body;
+    const user = await userModel.find({_id:userID});
+    const quote = await quoteModel.find({_id:quoteID});
+
+    if(!user || !quote)
+    {
+        res.status(404).json("Either userID or quoteID is invalid");
+        return;
+    }
+
+    const comment = new commentModel({
+        userID,
+        quoteID,
+        content
+    });
+
+    await comment.save();
+    res.status(200).json({message:"You posted a comment to this post"});
+}
+catch(exp)
+{
+    res.status(500).json({message:`An error accured ${exp}`});
+}
 });
 
 module.exports = router;

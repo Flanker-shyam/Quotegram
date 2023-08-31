@@ -18,4 +18,19 @@ function verifyToken(token) {
     }
 }
 
-exports.verifyToken = verifyToken;
+
+const verifyUserToken = (req, res, next)=>
+{
+    let token = req?.headers?.authorization?.split(" ")[1];
+    token = token === undefined?"thisisdefault":token;
+    
+    if(!verifyToken(token))
+    {
+        res.send("Need to login to view the content");
+        return;
+    }
+    else{
+        next();
+    }
+}
+module.exports = verifyUserToken;
