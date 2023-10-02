@@ -45,9 +45,10 @@ router.post("/", (req, res) => {
                 return;
             }
             const newUser = new userModel({
-                username:req.body.name,
+                username:req.body.username,
                 email: req.body.email,
-                password: hash,
+                passwordHash: hash,
+                registrationDate: Date.now()
             });
 
             newUser.save(err => {

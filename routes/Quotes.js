@@ -1,78 +1,110 @@
 const express = require("express");
 const router = express.Router();
-const imageModel = require('../models/imagesModel');
 const bodyParser = require("body-parser");
-const fileUpload = require("express-fileupload");
 var cors = require('cors');
 const helmet = require("helmet");
-const { verify } = require("jsonwebtoken");
+const verifyUserToken = require("../auth/authorization");
+const validator = require("../functions/validation");
+require("dotenv").config();
+
+//models
+const quoteModel = require('../models/QuoteModel');
+const likeModel = require("../models/likesModel");
+const commentModel = require("../models/commentModel");
+const userModel = require("../models/userModel");
 
 router.use(cors());
 router.use(bodyParser.urlencoded({ extended: true }));
 router.use(helmet());
+router.use(express.json());
+router.use(verifyUserToken);
 
-router.use(fileUpload({
-    limits: { fileSize: 50 * 1024 * 1024 },
-}));
-
-function verifyToken(token) {
-    const decoded = jsonwebtoken.verify(token, process.env.JWT_SECRET);
-
-    if (decoded) {
-        return true;
-    } else {
-        return false;
+router.post("/", verifyUserToken, async(req, res) => {
+    const {error} = validator.ValidateQuoteData(req.body);
+    if(error){
+        res.status(400).send(error.details[0].message);
+        return;
     }
-}
+    else{
+        try {
+            const quote = new quoteModel({
+                userID: req.body.userID,
+                content: req.body.content,
+                tags: req.body.tags,
+            });
+    
+            const savedQuote = await quote.save();
+            res.status(200).send(savedQuote);
+        } catch (err) {
+            res.status(500).send(err);
+        }
+    }
+});
 
-router.post("/", function (req, res) {
-    const uploadedFile = req.files.image;
-    const description = req.body.description;
-
-    const path = "/home/robot/Desktop/Desktop/webDevelopment/login-signup-react/login-frontend/public/files/" + uploadedFile.name;
-    const pathToSave = "../files/" + uploadedFile.name;
-    uploadedFile.mv(path, (err) => {
+router.get("/", verifyUserToken, function (req, res) {
+    quoteModel.find({}, function (err, foundImages) {
         if (err) {
             console.log(err);
         }
         else {
-            console.log("uploaded success");
-        }
-    });
-
-    const newImage = new imageModel({
-        imageUrl: pathToSave,
-        description: description
-    })
-    newImage.save(err => {
-        if (err) {
-            return res.status(500).send(err);
-        }
-        else {
-            return res.send({ status: "Success", path: path });
+            res.send(foundImages);
         }
     });
 });
 
-router.get("/", function (req, res) {
-    const token = req.headers.authorization.split(" ")[1];
+// Like Routes
+router.post('/:quotationId/like', verifyUserToken, async (req, res) => {
+    try{
+        const {userID, quoteID} = req.body;
+        const user = await userModel.find({_id:userID});
+        const quote = await quoteModel.find({_id:quoteID});
 
-    if(!verifyToken(token))
-    {
-        res.send("Need to login to view the content");
-        return;
-        // res.redirect("/login")
-    }
-    else{
-        imageModel.find({}, function (err, foundImages) {
-            if (err) {
-                console.log(err);
-            }
-            else {
-                res.send(foundImages);
-            }
+        if(!user || !quote)
+        {
+            res.status(404).json("Either userID or quoteID is invalid");
+            return;
+        }
+
+        const likes = new likeModel({
+            userID,
+            quoteID,
         });
+
+        await likes.save();
+        res.status(200).json({message:"You Liked this post"});
     }
+    catch(exp)
+    {
+        res.status(500).json({message:"An error accured"});
+    }
+});
+  
+  // Comment Routes
+router.post('/:quotationId/comment', verifyUserToken, async (req, res) => {
+try{
+    const {userID, quoteID, content} = req.body;
+    const user = await userModel.find({_id:userID});
+    const quote = await quoteModel.find({_id:quoteID});
+
+    if(!user || !quote)
+    {
+        res.status(404).json("Either userID or quoteID is invalid");
+        return;
+    }
+
+    const comment = new commentModel({
+        userID,
+        quoteID,
+        content
+    });
+
+    await comment.save();
+    res.status(200).json({message:"You posted a comment to this post"});
+}
+catch(exp)
+{
+    res.status(500).json({message:`An error accured ${exp}`});
+}
 });
 
 module.exports = router;

@@ -23,15 +23,28 @@ function ValidateLoginData(user) {
     return newSchema.validate(user);
 };
 
-function ValidateImageData(image){
-    const imageSchema = Joi.object({
-        title: Joi.string().required(),
-        description: Joi.string().required(),
-        image: Joi.buffer().required(),
-        tags: Joi.array().required()
-    });
+// function ValidateQuoteData(quote){
+//     const quoteSchema = Joi.object({
+//         userID: Joi.string().pattern(new RegExp('^[0-9a-fA-F]{24}$')).required(),
+//         content: Joi.string().required(),
+//         tags: Joi.array().items(Joi.string()).required(),
+//     });
+
+//     return quoteSchema.validate(quote);
+// }
+
+function ValidateQuoteData(quote){
+const quoteSchema = Joi.object({
+    userID: Joi.string().pattern(new RegExp('^[0-9a-fA-F]{24}$')).required(),
+    content: Joi.string().required(),
+    tags: Joi.array().items(Joi.string()).required(),
+    timestamp: Joi.date(),
+    likesCount: Joi.number().integer().min(0),
+    commentsCount: Joi.number().integer().min(0)
+  });
+  return quoteSchema.validate(quote);
 }
 
 exports.ValidateRegisterData = ValidateRegisterData;
-exports.ValidateImageData = ValidateImageData;
+exports.ValidateQuoteData = ValidateQuoteData;
 exports.ValidateLoginData = ValidateLoginData;

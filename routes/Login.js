@@ -1,15 +1,12 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jsonwebtoken = require("jsonwebtoken");
-const saltRounds = 10;
 const router = express.Router();
 const validator = require("../functions/validation");
 const userModel = require("../models/userModel");
 const helmet = require("helmet");
 const bodyParser = require("body-parser");
-// var cors = require('cors');
 
-// router.use(cors());
 router.use(bodyParser.urlencoded({ extended: true }));
 router.use(helmet());
 router.use(express.json());
@@ -23,7 +20,7 @@ router.post("/", (req, res) => {
     userModel.findOne({ email: req.body.email }, (err, foundUser) => {
         if (!err) {
             if (foundUser) {
-                bcrypt.compare(req.body.password, foundUser.password, function (err, result) {
+                bcrypt.compare(req.body.password, foundUser.passwordHash, function (err, result) {
                     if (!err) {
                         if (result === true) {
                             const token = jsonwebtoken.sign(
@@ -54,6 +51,7 @@ router.post("/", (req, res) => {
         }
     });
 });
+
 
 module.exports = router;
 
